@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxia de Sentimientos - Julieta</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            height: 100vh;
+            background: radial-gradient(circle at center, #1a1a4a 0%, #050510 100%);
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .solar-system {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vmax;
+            height: 100vmax;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Corazón Central */
+        .sun { position: relative; width: 100px; height: 100px; z-index: 1000; }
+        .heart {
+            position: relative; width: 80px; height: 80px; background: #ff3d6e; 
+            transform: rotate(-45deg); box-shadow: 0 0 60px #ff3d6e;
+            animation: heartPulse 1.5s ease-in-out infinite;
+        }
+        .heart:before, .heart:after { content: ''; position: absolute; width: 80px; height: 80px; background: #ff3d6e; border-radius: 50%; }
+        .heart:before { top: -40px; left: 0; }
+        .heart:after { left: 40px; top: 0; }
+
+        @keyframes heartPulse { 0%, 100% { transform: rotate(-45deg) scale(1); } 50% { transform: rotate(-45deg) scale(1.1); } }
+
+        /* Frases Expandibles */
+        .expanding-phrase {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            white-space: nowrap;
+            pointer-events: none;
+            color: rgba(255, 180, 210, 0.7);
+            font-weight: 300;
+            text-shadow: 0 0 5px rgba(255, 61, 110, 0.3);
+            z-index: 5;
+        }
+
+        /* Órbitas y Planetas */
+        .orbit { position: absolute; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 50%; pointer-events: none; }
+        .planet-container { position: absolute; width: 100%; height: 100%; animation: rotate linear infinite; }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .planet {
+            position: absolute; top: 50%; left: 50%; border-radius: 50%; cursor: pointer;
+            transition: transform 0.3s; z-index: 20;
+        }
+
+        /* Estrellas Estáticas */
+        .stars { position: absolute; width: 100%; height: 100%; z-index: 1; }
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0.5; }
+
+        /* Modal */
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 5000; opacity: 0; pointer-events: none; transition: 0.5s;
+        }
+        .modal.active { opacity: 1; pointer-events: all; }
+        .modal-content {
+            background: #111133; padding: 40px; border-radius: 30px; border: 1px solid #ff3d6e;
+            max-width: 450px; text-align: center; box-shadow: 0 0 40px rgba(255,61,110,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    <div class="solar-system" id="solar-system">
+        <div class="sun"><div class="heart"></div></div>
+        <div id="orbits-container"></div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <p id="modal-text" style="font-size: 1.2rem; font-style: italic;"></p>
+            <button onclick="closeModal()" style="margin-top:30px; background:#ff3d6e; color:white; border:none; padding:12px 30px; border-radius:25px; cursor:pointer;">Regresar al Universo</button>
+        </div>
+    </div>
+
+    <script>
+        // Lista masiva de frases
+        const allPhrases = [
+            "Eres mi todo", "Te amo infinito", "Mi lugar favorito es tu abrazo", "Eres mi sueño hecho realidad",
+            "Juntos por siempre", "Mi corazón late por ti", "Eres magia pura", "Tú y yo, contra el mundo",
+            "Eres mi luz en la oscuridad", "Mi pensamiento favorito eres tú", "Amo tu sonrisa", "Eres mi paz",
+            "Mi vida cambió contigo", "Eres increíble", "Te elijo cada día", "Eres mi destino",
+            "Mi alma gemela", "Gracias por existir", "Eres mi refugio", "Contigo todo es mejor",
+            "Te amo más que ayer", "Eres mi razón de sonreír", "Nuestro amor no tiene límites", "Eres mi hogar",
+            "Tu amor es mi tesoro", "Siempre estaré para ti", "Eres mi estrella guía", "Juntos somos invencibles",
+            "Amo cada detalle de ti", "Eres mi bendición", "No imagino un mundo sin ti", "Eres mi sol",
+            "Eres el amor de mi vida", "Mi historia favorita es la nuestra", "Amo tu forma de ser", "Eres única",
+            "Eres la música de mi alma", "Mi corazón te pertenece", "Eres mi mayor aventura", "Te amo",
+            "Eres mi inspiración", "Nacimos para estar juntos", "Eres mi felicidad", "Te amo locamente",
+            "Eres mi persona favorita", "Amo estar contigo", "Eres mi mundo entero", "Eres mi alegría",
+            "Cada segundo contigo vale oro", "Tu amor me hace fuerte", "Eres mi presente y futuro",
+            "Elegirte fue lo mejor", "Eres mi constelación favorita", "Amo nuestra complicidad", "Eres mi vida"
+        ];
+
+        const planetsData = [
+            { name: "Amor", size: 18, color: "#ff4d88", orbit: 160, speed: 30, hover: "Amor Infinito" },
+            { name: "Pasion", size: 22, color: "#ff3366", orbit: 240, speed: 45, hover: "Pasión Eterna" },
+            { name: "Ternura", size: 16, color: "#ff99cc", orbit: 320, speed: 60, hover: "Dulce Ternura" },
+            { name: "Fe", size: 24, color: "#cc66ff", orbit: 400, speed: 80, hover: "Fé en Nosotros" },
+            { name: "Luz", size: 17, color: "#9966ff", orbit: 480, speed: 100, hover: "Luz de mi Alma" },
+            { name: "Vida", size: 20, color: "#6699ff", orbit: 560, speed: 120, hover: "Vida Conmigo" }
+        ];
+
+        const longPhrases = [
+            "Desde que entraste en mi órbita, no he dejado de dar gracias al universo por tenerte.",
+            "Tu amor es la gravedad que me mantiene unido, la fuerza que me da sentido cada día.",
+            "Si las estrellas dejaran de brillar, yo seguiría viendo la luz a través de tus ojos.",
+            "No hay mapa estelar que pueda describir lo inmenso que es este sentimiento que tengo por ti.",
+            "Eres mi fenómeno natural favorito, la supernova que iluminó mi mundo para siempre.",
+            "Prometo ser tu satélite, cuidarte en la distancia y amarte en la cercanía de cada abrazo."
+        ];
+
+        function init() {
+            createStars();
+            createSystem();
+            // Lanza una ráfaga de 3 frases cada 1.2 segundos
+            setInterval(() => {
+                for(let i=0; i<3; i++) {
+                    setTimeout(spawnPhrase, i * 300);
+                }
+            }, 1200);
+        }
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for(let i=0; i<150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 2;
+                star.style.width = star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                container.appendChild(star);
+            }
+        }
+
+        function createSystem() {
+            const container = document.getElementById('orbits-container');
+            planetsData.forEach((p, i) => {
+                const orbit = document.createElement('div');
+                orbit.className = 'orbit';
+                orbit.style.width = orbit.style.height = `${p.orbit * 2}px`;
+                orbit.style.top = `calc(50% - ${p.orbit}px)`;
+                orbit.style.left = `calc(50% - ${p.orbit}px)`;
+                
+                const pContainer = document.createElement('div');
+                pContainer.className = 'planet-container';
+                pContainer.style.animationDuration = `${p.speed}s`;
+                
+                const planet = document.createElement('div');
+                planet.className = 'planet';
+                planet.style.width = planet.style.height = `${p.size}px`;
+                planet.style.backgroundColor = p.color;
+                planet.style.left = `calc(50% + ${p.orbit}px)`;
+                planet.style.top = `calc(50% - ${p.size/2}px)`;
+                planet.style.boxShadow = `0 0 15px ${p.color}`;
+                
+                planet.onclick = () => {
+                    document.getElementById('modal-text').innerText = longPhrases[i];
+                    document.getElementById('modal').classList.add('active');
+                };
+
+                pContainer.appendChild(planet);
+                container.appendChild(orbit);
+                container.appendChild(pContainer);
+            });
+        }
+
+        function spawnPhrase() {
+            const phrase = document.createElement('div');
+            phrase.className = 'expanding-phrase';
+            phrase.innerText = allPhrases[Math.floor(Math.random() * allPhrases.length)];
+            
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.max(window.innerWidth, window.innerHeight) * 0.8;
+            const duration = 12000 + Math.random() * 8000; // Muy lentas (12 a 20 segundos)
+            
+            document.getElementById('solar-system').appendChild(phrase);
+            
+            phrase.animate([
+                { transform: 'translate(-50%, -50%) scale(0.3)', opacity: 0 },
+                { transform: 'translate(-50%, -50%) scale(1)', opacity: 0.8, offset: 0.1 },
+                { transform: `translate(calc(-50% + ${Math.cos(angle) * distance}px), calc(-50% + ${Math.sin(angle) * distance}px)) scale(1.2)`, opacity: 0 }
+            ], {
+                duration: duration,
+                easing: 'linear'
+            }).onfinish = () => phrase.remove();
+        }
+
+        function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+        init();
+    </script>
+</body>
+</html>
